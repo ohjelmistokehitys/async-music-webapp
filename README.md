@@ -1,4 +1,4 @@
-# React + Vite REST API -harjoitus
+# Asynkroninen ohjelmointi ja REST-rajapinnat
 
 Tämä harjoitus keskittyy REST API:iden käyttöön React-sovelluksessa, asynkronisten operaatioiden käsittelyyn ja lataustilojen oikeanlaiseen hallintaan.
 
