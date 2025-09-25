@@ -8,10 +8,25 @@ function App() {
     const [loading, setLoading] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
 
+    /**
+     * The following function loads a list of articles from a dummy REST API.
+     * The initial list contains only basic information about each artist, but not their albums.
+     * Therefore, after fetching the list, we need to fetch each artist separately to get the albums.
+     * This is done by making additional fetch requests for each artist in the list.
+     * The function updates the state with the fetched artists and their albums.
+     *
+     * There are some bugs included in this function, especially in the asynchronous handling of fetch requests.
+     * When experimenting with the app, make note of the loading indicator and when it disappears. Also,
+     * check the order in which artists and albums are displayed. These are indicators of potential issues.
+     *
+     * Your task is to fix these issues. You may either fix individual bugs or rewrite the function entirely.
+     * Also, consider moving the function to a separate file, as it is quite large and not directly related to the UI.
+     */
     function loadArtists() {
         setLoading(true);
         setArtists([]);
 
+        // fetch a list of artists (the list does not contain albums)
         fetch('/json-demo/api/artists.json')
             .then(response => {
                 if (!response.ok) {
@@ -25,7 +40,7 @@ function App() {
                 // we need to fetch each artist separately to get the albums:
                 artistIndex.artists.forEach((artist: Artist) => {
 
-                    // fetch the current artist details
+                    // fetch the current artist details (including albums)
                     fetch(`/json-demo/api/artists/${artist.id}.json`)
                         .then(response => {
                             if (!response.ok) {
@@ -34,16 +49,17 @@ function App() {
                             return response.json() as Promise<Artist>;
                         })
                         .then(artist => {
-                            // add the artist (with albums) to the list
+                            // add the artist (now with albums) to the list
                             setArtists(previous => [...previous, artist]);
                         })
                         .catch(error => {
-                            console.error('Error fetching artist details:', error);
+                            console.error(`Error fetching details for artist ${artist.id}.`, error);
                         });
                 });
 
             }).catch(error => {
                 console.error('Error fetching artist index:', error);
+                alert('Failed to load artist index. See console for details.');
 
             }).finally(
                 // when everything is done (or has failed), stop showing the loading indicator
