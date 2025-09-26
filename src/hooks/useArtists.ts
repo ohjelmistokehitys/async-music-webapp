@@ -2,14 +2,8 @@ import { useState } from "react";
 import type { Artist, ArtistIndex } from "../types/types";
 
 /**
- * Fourth iteration of refactoring the artist loading logic.
- *
- * This time we refactor fetchArtistsWithAlbums to utilize async/await syntax,
- * which in this case makes the code a bit more readable.
- *
- * The hook itself remains unchanged. This solution, however, is slow as ****
- * because the artists are fetched one by one, waiting for each to complete
- * before starting the next.
+ * The useArtists hook manages the state of loading and storing artists with their albums.
+ * It provides a function to load the artists from the API.
  */
 export function useArtists() {
 
@@ -35,18 +29,22 @@ async function fetchArtistsWithAlbums(): Promise<Artist[]> {
     if (!indexResponse.ok) {
         throw new Error(`HTTP error receiving artists list: ${indexResponse.status}`);
     }
-    const artistIndex: ArtistIndex = await indexResponse.json();
+    const index: ArtistIndex = await indexResponse.json();
 
-    const artists: Artist[] = [];
+    // the artist (without albums) are fetched in parallel and their promises collected
+    const promises = index.artists.map(artist => fetchArtist(artist.id));
 
-    for (const artist of artistIndex.artists) {
-        const artistResponse = await fetch(`/json-demo/api/artists/${artist.id}.json`);
-        if (!artistResponse.ok) {
-            throw new Error(`HTTP error receiving artist ${artist.id}: ${artistResponse.status}`);
-        }
-        const artistData: Artist = await artistResponse.json();
-        artists.push(artistData);
-    }
+    // wait for promises in parallel and collect their results in the correct order
+    const artists = await Promise.all(promises);
 
     return artists;
+}
+
+
+async function fetchArtist(artistId: number): Promise<Artist> {
+    const artistResponse = await fetch(`/json-demo/api/artists/${artistId}.json`);
+    if (!artistResponse.ok) {
+        throw new Error(`HTTP error receiving artist ${artistId}: ${artistResponse.status}`);
+    }
+    return await artistResponse.json();
 }
