@@ -37,9 +37,9 @@ function checkOrder(artists: Artist[]): CheckResult {
 
     // leave out the last, as it can't be compared to anything after it
     const idsInAscendingOrder = ids.slice(0, -1)
-        .every((id, position, array) => {
+        .every((id, position) => {
             // the current id must be less than the next id
-            return id < array[position + 1];
+            return id < ids[position + 1];
         });
 
     if (!idsInAscendingOrder) {
