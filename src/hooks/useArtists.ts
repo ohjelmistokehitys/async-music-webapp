@@ -2,10 +2,14 @@ import { useState } from "react";
 import type { Artist, ArtistIndex } from "../types/types";
 
 /**
- * Third iteration of refactoring the artist loading logic.
+ * Fourth iteration of refactoring the artist loading logic.
  *
- * This time we want fetchArtistsWithAlbums to actually return an array of
- * artists, instead of adding them one by one in the callback.
+ * This time we refactor fetchArtistsWithAlbums to utilize async/await syntax,
+ * which in this case makes the code a bit more readable.
+ *
+ * The hook itself remains unchanged. This solution, however, is slow as ****
+ * because the artists are fetched one by one, waiting for each to complete
+ * before starting the next.
  */
 export function useArtists() {
 
@@ -27,42 +31,22 @@ export function useArtists() {
 
 
 async function fetchArtistsWithAlbums(): Promise<Artist[]> {
-    return fetch('/json-demo/api/artists.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error receiving artists list: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then((artistIndex: ArtistIndex) => {
+    const indexResponse = await fetch('/json-demo/api/artists.json');
+    if (!indexResponse.ok) {
+        throw new Error(`HTTP error receiving artists list: ${indexResponse.status}`);
+    }
+    const artistIndex: ArtistIndex = await indexResponse.json();
 
-            // instead of just looping, we want to create an array of promises, that we can wait for later
-            const promises: Promise<Artist>[] = artistIndex.artists.map(artist => {
+    const artists: Artist[] = [];
 
-                // `fetch` returns a promise, that we keep track of in the new promises array
-                return fetch(`/json-demo/api/artists/${artist.id}.json`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error receiving artist ${artist.id}: ${response.status}`);
-                        }
-                        return response.json() as Promise<Artist>;
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        throw new Error(`Error fetching details for artist ${artist.id}. See console for details.`);
-                    });
-            });
+    for (const artist of artistIndex.artists) {
+        const artistResponse = await fetch(`/json-demo/api/artists/${artist.id}.json`);
+        if (!artistResponse.ok) {
+            throw new Error(`HTTP error receiving artist ${artist.id}: ${artistResponse.status}`);
+        }
+        const artistData: Artist = await artistResponse.json();
+        artists.push(artistData);
+    }
 
-            // now each promise in the array will resolve to an Artist object!
-            return Promise.all(promises);
-
-        }).then(artists => {
-            // as the promises were created synchronously in the correct order, their
-            // results will also be in the correct order after Promise.all resolves!
-            return artists;
-        })
-        .catch(error => {
-            console.error(error);
-            throw new Error('Failed to load artist index. See console for details.');
-        });
+    return artists;
 }
