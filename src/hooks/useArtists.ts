@@ -1,14 +1,11 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 import type { Artist, ArtistIndex } from "../types/types";
 
 /**
- * Second iteration of refactoring the artist loading logic.
+ * Third iteration of refactoring the artist loading logic.
  *
- * This version utilizes Promise.all to figure out when all individual
- * artist fetches have completed.
- *
- * This solves the loading indicator issue, but the artists are still not
- * in the correct order.
+ * This time we want fetchArtistsWithAlbums to actually return an array of
+ * artists, instead of adding them one by one in the callback.
  */
 export function useArtists() {
 
@@ -19,18 +16,17 @@ export function useArtists() {
         setLoading(true);
         setArtists([]);
 
-        await fetchArtistsWithAlbums(setArtists);
+        const artists = await fetchArtistsWithAlbums();
 
+        setArtists(artists);
         setLoading(false);
     }
 
-    // return the states and the function that were inside the component in the previous version
     return { loading, artists, loadArtists };
 }
 
 
-// FIXME: the artists are still not in the correct order
-async function fetchArtistsWithAlbums(callback: Dispatch<SetStateAction<Artist[]>>): Promise<unknown> {
+async function fetchArtistsWithAlbums(): Promise<Artist[]> {
     return fetch('/json-demo/api/artists.json')
         .then(response => {
             if (!response.ok) {
@@ -41,7 +37,7 @@ async function fetchArtistsWithAlbums(callback: Dispatch<SetStateAction<Artist[]
         .then((artistIndex: ArtistIndex) => {
 
             // instead of just looping, we want to create an array of promises, that we can wait for later
-            const promises = artistIndex.artists.map(artist => {
+            const promises: Promise<Artist>[] = artistIndex.artists.map(artist => {
 
                 // `fetch` returns a promise, that we keep track of in the new promises array
                 return fetch(`/json-demo/api/artists/${artist.id}.json`)
@@ -51,24 +47,22 @@ async function fetchArtistsWithAlbums(callback: Dispatch<SetStateAction<Artist[]
                         }
                         return response.json() as Promise<Artist>;
                     })
-                    .then(artist => {
-                        // add the artist (now with albums) to the list
-                        callback((array: Artist[]) => [...array, artist]);
-                    })
                     .catch(error => {
-                        console.error(`Error fetching details for artist ${artist.id}.`, error);
+                        console.error(error);
+                        throw new Error(`Error fetching details for artist ${artist.id}. See console for details.`);
                     });
             });
 
-            // by returning a promise from the "then" callback, this function will
-            // become a part of the outer promise chain. Thus, the outer promise,
-            // that was created when fetchArtistsWithAlbums was called,
-            // will not resolve before all individual artist fetches have resolved:
+            // now each promise in the array will resolve to an Artist object!
             return Promise.all(promises);
 
-        }).catch(error => {
-            console.error('Error fetching artist index:', error);
-            alert('Failed to load artist index. See console for details.');
-
+        }).then(artists => {
+            // as the promises were created synchronously in the correct order, their
+            // results will also be in the correct order after Promise.all resolves!
+            return artists;
+        })
+        .catch(error => {
+            console.error(error);
+            throw new Error('Failed to load artist index. See console for details.');
         });
 }
